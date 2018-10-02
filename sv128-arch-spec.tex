@@ -1,0 +1,183 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Copyright 2018 Tactical Computing Laboratories, LLC
+% See LICENSE for licensing details
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass{article}
+
+\input{preamble}
+
+%\usepackage[margin=1.0in]{geometry}
+%\usepackage[version=3]{mhchem} % Package for chemical equation typesetting
+%\usepackage{siunitx} % Provides the \SI{}{} and \si{} command for typesetting SI units
+%\usepackage{graphicx} % Required for the inclusion of images
+%\usepackage{natbib} % Required to change bibliography style to APA
+%\usepackage{amsmath} % Required for some math elements 
+%\usepackage[boxed]{algorithm2e} % required for algorithms
+%\usepackage{fancyhdr}
+%\RequirePackage{epstopdf}
+%\RequirePackage{tabularx}
+%\RequirePackage{xstring}
+%\RequirePackage{hyperref}
+%\RequirePackage{fancyhdr}
+
+%-- setup paragraphs and margins
+\setlength{\parindent}{1em}
+\setlength{\parskip}{1em}
+
+
+%-- setup hyperlinks
+\hypersetup{
+  colorlinks=true,
+  linktoc=all,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black
+}
+%--
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+
+
+\renewcommand{\labelenumi}{\alph{enumi}.} % Make numbering in the enumerate environment by letter rather than number (e.g. section 6)
+
+\pagestyle{fancy}
+\lhead{}
+\chead{\textbf{SV128 Architecture Extension Specification}}  % -- classification
+\rhead{}
+\cfoot{} %-- format: TR YYYY-RRR-V.V; y = year; r = report; v = version
+\lfoot{\textbf{SV128 0.0.1}}  % -- classification
+\rfoot{\thepage}      % -- page number
+
+%\usepackage{times} % Uncomment to use the Times New Roman font
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT INFORMATION
+%----------------------------------------------------------------------------------------
+
+\title{\textbf{RISC-V SV128 Addressing and\\Architecture Extension Specification}} % Title
+
+%\author{John \textsc{Leidel}, David \textsc{Donofrio}, Farzad \textsc{Fatollahi-Fard}}
+\date{} % Date for the report
+
+\begin{document}
+
+\begin{figure}
+\vspace{2in}
+\begin{center}
+\includegraphics[width=3in]{figures/sv128.pdf} % Include the logo
+\end{center}
+\end{figure}
+
+\maketitle % Insert the title, author and date
+
+\thispagestyle{fancy}
+
+\begin{center}
+\begin{tabular}{l r}
+Date: & \today \\
+Version: & 0.0.1 \\ % Date the experiment was performed
+Authors: & Steven Wallach\\
+& John Leidel
+\end{tabular}
+\end{center}
+
+\clearpage
+
+\tableofcontents
+
+\clearpage
+
+%----------------------------------------------------------------------------------------
+%	DEFINITIONS
+%----------------------------------------------------------------------------------------
+%\section*{Terms}
+%\label{sec:terms}
+
+
+%----------------------------------------------------------------------------------------
+%       List of Figures
+%----------------------------------------------------------------------------------------
+
+\clearpage
+\listoffigures
+%\lstlistoflistings
+\listoftables
+%\listofalgorithms
+\clearpage
+
+%----------------------------------------------------------------------------------------
+%	SECTION 1
+%----------------------------------------------------------------------------------------
+\clearpage
+\section{Introduction}
+\label{sec:Introduction}
+
+\subsection{SV128 Overview}
+\label{sec:SV128Overview}
+
+This is a citation~\cite{RVSuperSPec}.
+
+%----------------------------------------------------------------------------------------
+%	SECTION 2
+%----------------------------------------------------------------------------------------
+\clearpage
+\section{SV128 Memory Model}
+\label{sec:SV128MemoryModel}
+
+\subsection{SV128 Memory Protection}
+\label{sec:SV128MemoryProtection}
+
+%----------------------------------------------------------------------------------------
+%	SECTION 3
+%----------------------------------------------------------------------------------------
+\clearpage
+\section{SV128 Machine Organization}
+\label{sec:SV128MachineOrganization}
+
+%----------------------------------------------------------------------------------------
+%	SECTION 4
+%----------------------------------------------------------------------------------------
+\clearpage
+\section{SV128 Instruction Set Extension}
+\label{sec:SV128InstructionSetExtension}
+
+%----------------------------------------------------------------------------------------
+%	SECTION 4
+%----------------------------------------------------------------------------------------
+\clearpage
+\section{SV128 Instruction Set Listings}
+\label{sec:SV128InstructionSetListings}
+
+%----------------------------------------------------------------------------------------
+%	ACKNOWLEDGEMENTS
+%----------------------------------------------------------------------------------------
+\newpage
+\section*{Acknowledgements}
+\label{Acknowledgements}
+\addcontentsline{toc}{section}{Acknowledgements}
+
+External acknowledgements go here
+
+%----------------------------------------------------------------------------------------
+%	REFERENCES
+%----------------------------------------------------------------------------------------
+\newpage
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{plain}
+\bibliography{sv128-arch-spec}
+
+%----------------------------------------------------------------------------------------
+%	GLOSSERY
+%----------------------------------------------------------------------------------------
+%\newpage
+%\input{glossary}
+%\glsaddall
+%\glossarystyle{altlist}
+%\printglossary[title=List of Terms,toctitle=List of Terms]
+
+\end{document}
