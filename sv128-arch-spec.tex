@@ -10,6 +10,12 @@
 
 \input{preamble}
 
+% \usepackage{appendix}
+\usepackage[toc,page]{appendix}
+
+
+
+
 %-- setup paragraphs and margins
 \setlength{\parindent}{1em}
 \setlength{\parskip}{1em}
@@ -25,10 +31,14 @@
 }
 %--
 
+
+
 \setlength\parindent{0pt} % Removes all indentation from paragraphs
 
 
 \renewcommand{\labelenumi}{\alph{enumi}.} % Make numbering in the enumerate environment by letter rather than number (e.g. section 6)
+\setcounter{secnumdepth}{5}
+\setcounter{tocdepth}{5}
 
 \pagestyle{fancy}
 \lhead{}
@@ -105,8 +115,33 @@ Authors: & Steven Wallach\\
 \section{Introduction}
 \label{sec:Introduction}
 
-\subsection{SV128 Overview}
-\label{sec:SV128Overview}
+The following  is a specification for a 128 bit logical  address space for RISC-V.  This is called SV128.  This SV128 specification contains the   interpretation  of the 128 bit pointer,  the  protection structures, the logical to physical translation and the extensions to the instruction set necessary to support this specification.
+
+SV128 is a superset of RV64.  This means all the current user level fixed, float, and vector instructions are part of the SV128 specification.
+
+SV128 supports the execution of RV32 and RV64 executable images.
+
+The motivation for this design is:
+
+\begin{itemize}
+\item  MAIN memory technology continues to advance
+\item  Memory capacity requirements continue to  demand more physical memory
+\item CLUSTER\-WIDE  computing is a dominant architecture. 
+\item The capacity of total physical memory is now a function of the number of nodes
+\item Languages and applications.  in many cases, require a system-wide view of all memory
+\item Protection of data from unauthorized  access and privacy concerns, require  contemporary protection mechanisms
+\item Architectures are moving from processor centric to data centric
+\end{itemize}
+
+
+
+Appendix A,  “The Execution of the Load Instruction”, describes the steps that are needed to execute a LOAD register instruction.  This will help to understand the protection and translation mechanisms
+
+Many of the specific encodings of the various control fields needs to be defined.  The control fields are  described,  but not specific encodings.
+
+
+\pagebreak
+
 
 
 %----------------------------------------------------------------------------------------
@@ -128,20 +163,51 @@ The following is the proposal for the Operand Reference Protection System and Lo
 \item  Whenever and where ever possible use software mechanisms used by Linux and appropriately reflected into hardware and architecture.
 \item  Provide a protection mechanism based on a limited number of Domains.  Domains provide a non-hierarchical protection structure. Thus, different than Rings
 \item  Provide architectural support for Virtual Machine Monitor (VMM).  VMM is part of the protection and address space translation mechanism
-\item  Much of what is described is a diminutive form of the proposal for a FULL 128 bit object address space and protection mechanism.  Hopefully this will happen at one time.   The following, Figure 1A, is a  simplistic diagram of the FULL APPROACH. (Only for reference purposes).
+\item  Much of what is described is a diminutive form of the proposal for a FULL 128 bit object address space and protection mechanism.  Hopefully this will happen at one time.   The following, Figure 1, is a  simplistic diagram of the FULL APPROACH. (Only for reference purposes).
 \item  Independent of the user level ISA.  This means, if one wanted,  SV128 could be supported on, for example, INTEL and ARM processors
 \end{itemize}
 
 The format of a SV128 address space is:
 
 \begin{figure}[h]
-\includegraphics[scale = .4] 
+\includegraphics[scale = .5] 
 {figures/figure1a.jpg}
-\caption{Caption goes here for Fig1a}
+\caption {128  BIT POINTER and ACL MATRIX  - FOUNDATION}
 \end{figure}
+\pagebreak
+\subsection {SV128 Registers -  Protection and Address Translation}
 
-\subsection{SV128 Memory Protection}
-\label{sec:SV128MemoryProtection}
+Many registers are defined that facilitate the SV128 mechanisms.   These registers either contain SV128 addresses or integer values.  The SV128 domain protection model, is inherently non hierarchical in nature. Consequently many registers with the same name, exist in different domains. Thus, in general,  the notion of privileged registers (with some exceptions) DOES NOT exist.  Foe example,  lets define a register called:  STATUS, and the status exists, uniquely for each domain.  Executing the LOAD STATUS register,  only loads a value  into the STATUS register in the current domain.  This is a more salable approach, compared to historical mechanisms.
+
+
+
+
+The registers currently defined are and their meaning:
+
+
+
+\begin {itemize}
+\item PC – Program Counter. This register contains the byte address of the currently executing instruction.
+\item Current Domain  (CURRDOM)– This is a 2 bit register.  The value of this register is used to determine the current protection domain.
+\item DCAT (DOMCALLTABLE) Domain Call Access Table - used for cross domain calls
+\item DCAB (DOMCALLBASE) The base address of the Domain Call Access Table - One per  domain
+\item ODTBASE (OBJECTDEFTABLE) –BASE OF Object Definition Table- Object\_ID indexes into table.  Process Wide
+\item Object\_ID  base register (CURROBJECT)
+\item Current PGAS node id (CURRPGAS).
+\item RS1 – the RV128 integer register set.  128 bit wide.
+\item HyperPresent – Is this a Hypervisor configured system
+
+\end{itemize}
+
+
+
+
+
+\pagebreak
+
+
+
+
 
 %----------------------------------------------------------------------------------------
 %	SECTION 3
@@ -169,13 +235,15 @@ The format of a SV128 address space is:
 
 
 \begin{figure}[h]
+\begin{center}
 \includegraphics[scale = .4]
 {figures/figure1b_objectid_image.jpg}
-\caption{Caption goes here for Fig1b}
+\caption{SV128 ADDRESS FORMAT}
+\end{center}
 \end{figure}
 
 
-Even though 64 bits are allocated for the Object ID,  the first implementation will be restricted to 32 bits.  That  means that the logical address space of SV128 is 296  bytes.  This is  very similar to current Implementations of a 64 bit logical address space.  Most, if not, all current processor designs  only support 48 to 52 bits of the logical address space.
+Even though 64 bits are allocated for the Object ID,  the first implementation will be restricted to 32 bits.  That  means that the logical address space of SV128 is 296  bytes.  This is  very similar to current Implementations of a 64 bit logical address space.  Most, if not, all current processor designs  only support 48 to 52 bits of the logical address space. The higher order 32 bits are reserved for future system use.
 
 Indexing a SV128 logical address is mod 64.  This means ONLY the Object Offset takes part in the arithmetic indexing operation.  The OBJECT ID is NOT modified in any manner during indexing.
 
@@ -201,30 +269,52 @@ Kernel Objects are statically defined to help create a hardware implementation t
 
 This chapter describes the protection structures  for SV128.  The protection structures are defined in a manner that directly supports the following RISC-V paradigm.
 
+
+
+\begin{figure}[h]
 \begin{center}
 \includegraphics[scale = .4]
-{figures/figure1c_riscv_stacks.jpg}
-\centering
+{figures/figure1c_riscv_stacks_privileged.jpg}
+\caption{RISC\-V Privileged Stacks}
 \end{center}
+\end{figure}
 
+\begin{figure}[h]
 \begin{center}
 \includegraphics[scale = .4]
-{figures/figure2_privleged_level_simple.jpg}   \centering
- \end{center}
-
+{figures/figure2_privileged_level_simple.jpg}  
+\caption{RISC\-V PRIVILEGED LEVELS}
+\end{center}
+\end{figure}
 
 Another way to depict this is  from the INTEL  VTx structures (see Figure~\ref{fig:intelvtx}).
 
+However it should be noted,  that for SV128,  there is NO IMPLIED PRIVILEGED  LEVELS. there are 4 domains, equal in privilege.  To correctly manage system wide security polices,  there are 4 OBJECTS that are considered KERNEL  Objects.  Various capabilities can only  be performed by KERNEL Objects. Additionally for each domain a capability referred to as as SHADOW STACK is provided.  Thus permits users to incorporate external libraries in a hardware enforced SANDBOX  structure.  Consequently the RISC\_V privileged is now recast as follows:
+
 \begin{figure}[h]
-\includegraphics[scale=.4]{figures/figure2a_intelvtx.jpg}
-\caption{Intel VTx structures\label{fig:intelvtx}}
+\begin{center}
+\includegraphics[scale = .4]
+{figures/domain_levels_software.jpg}  
+\caption{RISC\-V SV128 DOMAIN PRIVILEGED LEVELS}
+\end{center}
 \end{figure}
 
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[scale=.4]{figures/figure2a_intelvtx.jpg}
+\caption{Intel VTx structures\label{fig:intelvtx}}
+\end{center}
+\end{figure}
+
+
 It should be noted,  that the static allocation of the OS to Ring 0,  by INTEL, precludes the direct incorporation of the address space and protection mechanism of Virtual Machine Monitor with the address space of the OS (noted as Rings 0 thru 3). This static allocation is appropriate for non-virtual machine monitor situations.  This is NOT the case for SV128. For SV128,  protection CONTEMPLATES a Virtual Machine Monitor.
+\pagebreak
+\pagebreak
 
 \subsection{Domains}
 
-The definition of SV128,  assumes from the onset,  the support of 4 non-hierarchical levels of privileged execution.  These 4 levels are:  USER/APPLICATION (Domain – 3).  SPARE,  OS (Domain -1), HYPERVISOR (Domain-0).   The definition of the protection structures is INDEPENDENT of the definition of the SV128 virtual address space.  When this virtual address space is visually examined,   as previously noted,  it is partitioned into OBJECT ID and OBJECT OFFSET. Some object enumerations may have static meanings and these meanings may have protection ramifications.  For an OBJECT ID equal all zero’s means the OS kernel object. The USER never references the Hypervisor Object. This helps  prevents various security breaches due to speculative execution. 
+The definition of SV128,  assumes from the onset,  the support of 4 non-hierarchical levels of privileged execution.  These 4 levels are:  USER/APPLICATION (Domain – 3).  SPARE,  OS (Domain -1), HYPERVISOR (Domain-0).   The definition of the protection structures is INDEPENDENT of the definition of the SV128 virtual address space.  When this virtual address space is visually examined,   as previously noted,  it is partitioned into OBJECT ID and OBJECT OFFSET. Some object enumerations may have static meanings and these meanings may have protection ramifications.  For an OBJECT ID equal all zero’s  (and other encodings) means the OS kernel object. The USER never references the Hypervisor Object. This helps  prevents various security breaches due to speculative execution. 
 
 As will be noted the permissions of each of the 4 domains are independent of one another.  The 4 domains,  with hardware, directly supports  what is displayed in Figure 1. The objective of the creation and functioning of  these 4 domains,  is to directly support, in one homogeneous architecture, the software structures shown in Figure 1 and 2. When a memory reference is made,  access permissions as designated by the current domain are interpreted.  
 
@@ -232,7 +322,7 @@ While not currently implemented,  one can anticipate that over time,  the Hyperv
 
 When the OS  or VMM is booted up,  a privileged register  (HYPER\_PRESENT) is set.  This register indicates the presence or absence of a Hypervisor.    The state of this register is used to determine logical to physical translation and other  VMM (virtual machine) operations. Various other registers are set when the VMM is booted.
 
-Domains are defined to isolate and protect data from one part of the OS from user data.  One of the classical computer domains is RINGS.  These are hierarchical in nature.  Usually the user is in the ring that had the least privileges and the OS in the ring that had the most privileged.  Due to the hierarchical nature of rings,  various hardware implementations,  based on the definition of the logical address space exist.  Address references are mediated based on current   ring and target ring. This generally works quite will.  However, there are cases,  that the static inflexibility of this structure, leads to complex sharing structures.   Thus, for SV128 four non-hierarchical domains are defined. The OS may choose, via entries in the PTE to make data references hierarchical or not. Figure 5,  the format of a PTE shows the domain  permission fields in a PTE (4 bits).  When an address is translated from logical to physical the meaning and use of these fields will be specified.
+Domains are defined to isolate and protect data from one part of the OS from user data.  One of the classical computer domains is RINGS.  They are hierarchical in nature.  Usually the user is in the ring that had the least privileges and the OS in the ring that had the most privileged.  Due to the hierarchical nature of rings,  various hardware implementations,  based on the definition of the logical address space exist.  Address references are mediated based on current   ring and target ring. This generally works quite will.  However, there are cases,  that the static inflexibility of this structure, leads to complex sharing structures.   Thus, for SV128 four non-hierarchical domains are defined. The OS may choose, via entries in the PTE to make data references hierarchical or not. Figure 5,  the format of a PTE shows the domain  permission fields in a PTE (4 bits).  When an address is translated from logical to physical the meaning and use of these fields will be specified.
 
 
 \begin{center}
@@ -241,58 +331,66 @@ Domains are defined to isolate and protect data from one part of the OS from use
 \centering
 \end{center}
 
-\subsection{Domain Crossing}
+\subsubsection{Domain Crossing}
 
-Crossing a domain has to be mediated.  Arbitrary entry  points are NOT  permitted. When crossing a domain,  the domain call instruction sequence MUST access a table in the Called Domain. The base of this table is defined in a register called: DOMAIN\_ACCESS\_BASE. 
-
-Eventually the appropriate registers and instructions will be defined, once the definition is finalized.
+Crossing a domain is mediated.  Arbitrary entry  points are NOT  permitted. When crossing a domain,  the domain call instruction sequence MUST access a table in the Called Domain. The base of this table is defined in a register called: DOMAIN\_CALL\_ACCESS\_BASE (DCAT). 
 
 
  Assume for description the DOMAIN call instruction has the following format:
 
 \begin{figure}[h]
-\includegraphics[scale=.4]{figures/figure3_call_instruction.jpg}
+\begin{center}
+\includegraphics[scale=.4]
+{figures/figure3_call_instruction.jpg}
 \caption{Call instruction}
+\end{center}
 \end{figure}
 
-\subsection{Domain Access Table}
 
-When an OS is created, either due to either a native SV128 OS or a SV128 Hypervisor,  4 registers are loaded.  These 4 registers  contain the logical address of the Domain Access Table.   These registers are called:  Domain Access Base.  (DAB). The structure of  these table is:
+\subsubsection{Domain Call Access Table}
 
+When an OS is created, either due to either a native SV128 OS or a SV128 Hypervisor,  4 registers are loaded.  These 4 registers  contain the logical address of the Domain Call Access Table (DCAT),  one per domain.   These registers are:  Domain Call Access Base.  (DCAB). The structure of  these table is:
+
+\begin{figure}[h]
 \begin{center}
 \includegraphics[scale = .4]
-{figures/figure3a_table_structure_general.jpg}
-\centering
+{figures/domain_call_table_index.jpg}
+\caption{DOMAIN CALL ACCESS TABLE}
 \end{center}
-
-		                 FIGURE 3A – Domain Access Table \newline
-		                 
-The base of this table is contained in the Domain Access Base register. \newline
-
+\end{figure}
 
 		                 
 		                 
+The base of this table is referenced in the Domain Call  Access Base (DCAB) register. 
+
+
 		                 
-		     
 		                 
-When domain call instruction is executed the following occurs.  The Domain Name is used to logically reference the appropriate Domain Access Register.   The first entry is used to perform a bounds check.  The entry point named  in the instruction (an integer) is compared to the Bounds Check  Value on  the Domain Access Table.  If  the specified entry point is valid,  then   the specified entry  point is used to index into the table and branch to the first location of the called routine.  There is NO OTHER WAY to transfer control from a caller to callee domain. The return domain instruction is the compliment of the CALL Domain.
+		                 
+\subsubsection{Domain Call}		     
+		                 
+When domain call instruction is executed the following occurs.  The Domain Name specified in the Domain Call instruction  is used to logically reference the appropriate Domain Call Access Base Register (DCAB).
+
+The first entry is used to perform a bounds check.  The entry point named  in the instruction (an integer - bits [15-0]) is compared to the Bounds Check  Value in  the DOMAIN CALL Access Table.  If  the specified entry point is valid,  then   the specified entry  point is used to index into the table and branch to the first location of the called routine.  There is NO OTHER WAY to transfer control from a caller to callee domain. The return domain instruction is the compliment of the CALL Domain. 
+
+Additionally,  the  contents of the entry indexed,  128 bits has the following meanings.  
+
+The lower 96 bits is the logical address of a valid entry point in the called domain,  becomes the new  value of the Program Counter (PC).  The higher order 5 bits are used for permissions and entry validity.  Bit 127 indicates that the table entry is valid (valid  =  “1”).  If not valid, a faults occurs. Bits [126-123]  indicate that a domain crossing from the current domain permitted.  Bit 126,  a “1” indicates that a call from domain 0 is permitted.  Bit 125 indicates that a call from domain 1 is permitted and so one. This structure is consistent with the non-hierarchical nature of domain.  This structure also permits certain entry points to be uniquely defined for particular routines for particular domains.
+
+
 
 In addition to these transfer of control, a new stack is created  in the called domain.  The called domain may access the caller’s domain,  but the caller’s domain cannot access the called domain’s stack.
 
-To deal with the situation that a call, for example, from domain 3 is only permitted to domain 2, and no other domains,  the following is defined. The previously defined domain access register (DAR) besides specifying the logical address of the Domain Access Table,  also has 4 2-bit fields.  These fields are permission fields that note whether the caller can access the called  Domain Access Table.  Since Domains are NOT HIERARCHICAL in nature,  we cannot assume that, for example, domain 3 cannot call domain 1, or vice versa. 
 
-There are 4 domain access registers (DAB).  The OS or Hypervisor is responsible for loading these registers.  The instruction used to load this register is privileged.  What a privileged instruction means is described later
+\textbf{It is the responsibility of the EACH domain to create its own DOMAIN CALL ACCESS TABLE.}
 
-CALL
+\subsubsection{Discussion of Object Definition  Table (ODT) Entry}
 
-When this is executed the entry, point noted in this instruction is used as an index into the table maintained in the called domain.  The index is calculated as:  index plus DOMAIN\_ENTRY\_BASE.  
+More  than likely the ODT entry will have 256 bits.  I would be appropriate for this unused entry to be a system wide Object Name when a hypervisor is present.  The current  64 bit Linux,  creates 64 bit unique process id's.  
+Names that are uinqiue make it easier for the kernel (GuestOS or VMM) to manage resources. Creating this name, also  provides the ability to construct a system-wide TLB mechanism,.  Please see the section on TLB architecture.
 
-The contents of this entry indicate: 
-	.The index is a valid index. A bounds check is performed 
-	.Can this domain be called from the caller’s domain. The CURRDOM is used for this
-If the above is true,  a transfer of control, stack switching occurs.  CURRDOM is now changed to the callee’s domain. CURRDOM is a register.
 
-RETURN
+\subsubsection{Domain Return}
 
 In a non-hierarchical system the return is basically the same as the call. For SV128, the supporting structures are described in Figure 1, etc.  And this is hierarchical.  Thus, the RETURN from a domain call is:  switch stacks,  change the CURRDOM to the original caller’s domain.  Since the structures are hierarchical,  it can be  assumed that the PTE’s used by an inner domain,  have access to the caller’s domain data. 
 
@@ -301,6 +399,7 @@ For a detailed description of domain call and return, see Appendix A.
 %----------------------------------------------------------------------------------------
 %	SECTION 4
 %----------------------------------------------------------------------------------------
+\pagebreak
 \section{Memory Translation}
 
 \subsection{Translation of Logical to Physical Addresses}
@@ -316,7 +415,7 @@ The SV128 address space, though not necessarily protection, is hierarchical in n
 The following is the  translation for RV64 of the current RISC-V ISA.  I am using this to describe what is appropriate for SV128.   The page table structure of the translation of a 48 bit virtual address for RV64 is:
 
 
-\begin{figure}
+\begin{figure}[h]
 \includegraphics[scale=.4]{figures/figure4_sv48_translation.jpg}
 \caption{CURRENT RISC-V TRANSLATION OF VIRTUAL TO PHYSICAL – SV48}
 \end{figure}
@@ -325,35 +424,96 @@ The following is the  translation for RV64 of the current RISC-V ISA.  I am usin
 
 For SV128 the address of the page table comes from an index (hash) of the Object ID of the  128 bit virtual address).  Thus, what is noted as SAP (PPN – WARL) for RV64 is replaced by this  hash. 
 
-The hashed Object ID is used as an index into the Domain\_Address\_Translation Table (DATT).  The base of this table (on physical memory) is contained in the Domain\_Translation\_Base register  (DOMTRANBASE). There is one DOMTRANBASE register per domain.  Each domain has its own address translation base register.
+The hashed Object ID is used as an index into the OBJECT DEFINITION TABLE (ODT)).  The base of this table (on physical memory) is contained in the OBJECT Definition Table Base (ODTBASE). The Object Definition Table is Process Wide. The contents of a ODT entry and/or PTE contain permissions that control the access's an object has for a particular domain.
 
 %               OBJECT_ID (HASHED)
          
 \begin{figure}
 \includegraphics[scale=.4]{figures/figure4a_datt_translation_table.jpg}
-\caption{Domain\_Address\_Translation\_Table (DATT)}
+\caption{INDEXING INTO OBJECT DEFINITION TABLE}
 \end{figure}
 
-The contents of a valid indexed entry indicate:  Valid/Not Valid, Type of Translation -  RV64 or RV32,  page table structure,  page size.  And finally, the physical address of the first page table. We should consider a DIRECT referenced to a data item without needing a page table.  In essence a valid indexed entry IS A PTE. There may be OTHER  flags and other data fields.  Among the possibilities are:  bonds check on the 64 bit virtual address,  some characteristic   the data referenced, data is encrypted, etc.
+The contents of a valid object indexed entry is as follows:
+
+An entry can be Up to 3 64 bit words.  
+
+The first word  contains 2 32\_bit fields.  The higher order 32 bits is a control field.   The bits in this field indicate:  the entry is valid or not and the type of  entry. The valid bit permits this table to be sparse.  The Object\_ID table is maintained by the OS or VMM.  When there is a VMM,  there is an Object Table per GuestOS instantiation.  The type of entries are:
 
 
-When a data or procedure call is executed,  the CURRDOM is used to determine if the reference is valid (CURRDOM selects one of the four domains in the PTE).  This is implemented by defining various fields in a Page Table Entry  (PTE) that references the desired operand.  The following discussion pertains to the interpretation of the final PTE (the one that references data or code)
+\begin{itemize}
+\item No bounds check on the referenced operand.  proceed with  accessing page tables for logical to physical translation.
 
+A valid entry that points to an operand or structure.  A bounds check is needed to validate the reference is valid.  This is independent of the read, write, and execute permission bits. If there is a bounds check,  the third 64 bit word is used for the bounds check. If the bounds check succeeds,  the  logical to physical translation is executed. The domain permission bits in the higher order 32 bits are used to determine if the reference is valid (using the CURRDOM register).
+
+\item Bounds check on the referenced operand (using the 64\_bit byte offset of the operand reference)
+
+A   valid entry that  indicates that word 2, contains the physical address of the page tables required for logical  to physical address translation.
+
+A field in the higher order 32 bits indicates that the type of   translation required for operand accesses to the referenced Object\_ID. These fields are  consistent with the current definitions of the RISC-V  RV64 and RV32,
+
+\end{itemize}
+The lower order 32 bits of the first 64 bit word is reserved.  It is anticipated that if the Object\_ID lookup is a hashed lookup;  this field will contain the 32 bit name of the Object.  This is required for contemporary  hashing algorithm.  One needs to know if the hashed  index , in fact, accesses the correct Object\_ID table entry
+
+As an aside,  the contents of the Object\_ID table entry can be viewed, if one wants, as a CAPABILITY.  For this situation,  there is no need to tag or partition memory in a way, that prevents forged capabilities.
+
+\subsection{Discussion - ODT Format and Contents}
+\label{Discussion - ODT Format and Contents}
+
+If the ODT entry were expanded to 256 bits,  then the entries should be:
+
+\begin{itemize}
+
+\item word 1  - control,  page table configuration,  and permissions.  ObjectId for Hash Table assistance.
+\item word 2 - physical address of first level page table
+\item word 3 - bounds check  on 64 bt byte offset 
+\item word 4 - system wide virtual address,  created by Hypervisor when present
+\end{itemize}
+
+The reason for the inclusion of word 4,  system wide wide virtual address, to:  be consistent with the current 64 bit Linux conventions for managing resources by the kernel and to provide a mechanism for a Persistent State TLB. Please see the section on TLB Discussion for more details.  The following is a diagram of the current Linux kernel system wide naming.  How would this be extended,  for SV128?
+
+Word  4   has  meaning if a TLB with a persistent architecture is implemented.  This means process multiplexing DOES NOT  flush the TLB.  This can have meaningful imnpact on performance.  There maybe several   definition of word 4.  Thus,  for now, assume in word 1,  there is a 3 bit field that determines how the hardware will use word 4.  When there is a selected value in word 4,  the TLB will associate this value,  the indexed Object\_ID  and the Byte Offset for lookup purposes.
+
+The encodings are: 
+
+\begin{itemize}
+    \item 000 - Do NOT USE
+    \item 001 - use the lower order 32 bits
+    \item 010 - use the higher order 32 bits
+    \item 011 - use the entire 64 bits
+\end{itemize}
+
+
+
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[scale=.3]{figures/96_bit_linux.jpg}
+\caption{CURRENT 64 Bit Linux Kernel structures}
+\end{center}
+\end{figure}
+
+\pagebreak
+
+\subsection{Page Table Entry - Fields}
 
 The Format of a PTE (denoted as VPN (0) is the above figure) is:
 
-\begin{figure}
+\begin{figure}[h]
+\begin{center}
 \includegraphics[scale=.8]{figures/figure2b_pte.jpg}
 \caption{PAGE TABLE ENTRY}
+\end{center}
 \end{figure}
 
 Each of the above domain fields is 4 bits wide.  These 4 bit indicate permissions (or lack thereof) for READ,  WRITE,  EXECUTE,  TBD. (perhaps reduce to 3 later on). One possibility for the unused bit to trap to a routine that mediates the access in some controlled  manner (like time of day)
 
-\begin{center}
+\begin{figure}[h]\begin{center}
 \includegraphics[scale=.4]
 {figures/figure5a_domain_permissions.jpg}
+\caption{PTE PERMISSION}
 \centering
 \end{center}
+\end{figure}
 
 Assume the LOAD instruction is executed.  The load instruction generates a SV128 virtual address.  This virtual address needs to be translated to a physical address.  Only for purposes of this description, assume that we have translated the virtual address and now have accessed the final PTE needed to reference the desired operand (data or procedure), as shown in Figure 5 Page table Entry.   The following now occurs.  The value in the CURRDOM register is compared to the corresponding domain field of this PTE.   If a read is requested the read permission bit is examined.  If a read is authorized,  the referenced operand is fetched.  If a write is requested,  the write permission bit is examined.  If a write is authorized the referenced operand is written.  If a transfer of control is requested,  the execute permission bit is examined.  If  a transfer is authorized,  a transfer of control happens.  The CURRDOM is not  CHANGED.
 
@@ -362,14 +522,24 @@ The domain access permission bits for intermediate page table entries are NOT in
 %----------------------------------------------------------------------------------------
 %	SECTION 5
 %----------------------------------------------------------------------------------------
+\pagebreak
 \section{Shadow Stack}
-SHADOW  STACK/SANDBOX (PERSONAL DOMAIN)
 
-PARAPHASING  a phase from Greek Mythology: Beware of GEEKS Bearing Gifts
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[scale = .4]
+{figures/figure6_shadow_stack.jpg}
+\caption{SHADOW STACK  ARCHITECTURE}
+\end{center}
+\end{figure}
+
+
+PARAPHASING  a phase from Greek Mythology: Beware of GEEKS bearing gifts.
 
 Protection comes in many forms.  The most dominant form is protection of  the OS Kernel/VMM from user access. This is generally supported via the definition of instructions that  can only be executed by the Operating System.  This assists in separating user data and control from OS  data and control.  In contemporary protection systems one would also like to provide a similar level to the USER.  this is the case, when the USER calls an externally provided software routine,  a library call. In a manner similar to the OS/USER structure, SV128 provided a level of library isolation and control via the creation of a SHADOW STACK  and with mediated operand access by the library to the caller's data (SANDBOX).
 
-The characteristics of the shadow stack are:  A separate set of subroutine control registers (SP and FP),  and an additional domain field in the PTE.  In essence a PERSONAL DOMAIN, for the user is defined and hardware supported.  This functions is as follows.
+The characteristics of the shadow stack are:  A separate set of subroutine control registers (SP and FP),  and an additional domain field in the PTE.  In essence a PERSONAL DOMAIN, for the user is defined and hardware  This functions is as follows.
 
 The user executes the subroutine call instruction.  When the address of the called routine is translated (using defined entry points as in a domain call), using the Domain Translation Base register of the CURRENT DOMAIN)  the PERSONAL DOMAIN bits of the final PTE are interpreted. If the appropriate bit is set,     a shadow stack call is initiated. This results in a new set of stack management registers.  The callers stack management registers are NOT  accessible to the called routine.
 
@@ -378,16 +548,12 @@ This also now means,  that the  address translation of the memory references fro
 
 
 
-For example,  assume the user has 1 GByte of data managed by a RV64 address space for one object.   The page tables indicate the physical location and permission bits for this 1 GByte of data.  The user calls a library that it wishes to be SANDBOXED and permission to only read one particular 4Kbytes of data.   Prior to the call,  the user makes a sys\_call.  The sys\_call results in an entry point for the called routine being created in the Domain Address Translation Table.  Additionally, the PTE for the referenced page is marked for the appropriate permissions in the PERSONAL DOMAIN field. All other permission bits are disabled.  Thus, the called routine can only read/write the specified 4 Kbyte page,  even though the library is in the same domain and uses the same page tables.
-
-The Shadow Stack is depicted in Figure~\ref{fig:shadowstack}.
+For example,  assume the user has 1 GByte of data managed by a RV64 address space for one object.   The page tables indicate the physical location and permission bits for this 1 GByte of data.  The user calls a library that it wishes to be SANDBOXED and permission to only read one particular 4 KBytes of data.   Prior to the call,  the user makes a sys\_call.  The sys\_call results in an entry point for the called routine being created in the Domain Address Translation Table.  Additionally, the PTE for the referenced page is marked for the appropriate permissions in the PERSONAL DOMAIN field. All other permission bits are disabled.  Thus, the called routine can only read/write the specified 4 KByte page,  even though the library is in the same domain and uses the same page tables.
 
 
-\begin{figure}
-\includegraphics[scale = .4]
-{figures/figure6_shadow_stack.jpg}
-\caption{SHADOW STACK - ARCHITECTURE\label{fig:shadowstack}}
-\end{figure}
+
+
+
 
 %----------------------------------------------------------------------------------------
 %	SECTION 6
@@ -406,9 +572,11 @@ There are several consequences of the above.  Each GuestOS has to know how much 
 Using the translation of RV32 the following is defined. (for describing only)
 
 \begin{figure}
+\begin{center}
 \includegraphics[scale = .4]
 {figures/figure7_rv32_pte.jpg}
 \caption{GuestOS created page tables for translating logical to  physical (OS Physical Address Space)\label{fig:guest-logical-physical}}
+\end{center}
 \end{figure}
 
 
@@ -416,17 +584,20 @@ The VMM creates the following
 
 
 \begin{figure}
+\begin{center}
 \includegraphics[scale = .9]
 {figures/figure8_hypervisor_page_table.jpg}
 \caption{Hypervisor  page tables for translating logical to physical (VMM Physical Address Space)}
+\label{fig:hypervisor pagetables}
+\end{center}
 \end{figure}
 
 There is a VMM status  control register.  When VMM is enabled this results is the following: The base register for address translation for RV32 is changed from SAP (PPM WARL)  to the VMM\_REG. 
 
- In reality, as a result of a physical address base for each domain,the VMM\_REG becomes the   Domain Address Translation Table (DATT) Base   register.  This register can only be changed when the current domain is 0, when a Hypervisor is present.
+ In reality, as a result of a physical address base for each Object\_Id,the VMM\_REG becomes the    This register,  the Object Definition Base Register (ODTBASE)  can only be changed when the current domain is 0, when a Hypervisor is present.
 
 
- The Hypervisor created page tables, in the VMM address space are NOW used (Figure 8), in place of the GuestOS created page tables for logical to physical  translation.   In essence the overhead for a VMM logical to physical  translation is substantially reduced.   The indirection previously described is reduced to ONE indirection, once upon   initiation of lookup,  rather than for all physical memory references external to the VMM. This approach is NOT NEW and has been implemented in several systems.
+ The Hypervisor created page tables, in the VMM address space are NOW used (see figure ~\ref{fig:hypervisor pagetables}), in place of the GuestOS created page tables for logical to physical  translation.   In essence the overhead for a VMM logical to physical  translation is substantially reduced.   The indirection previously described is reduced to ONE indirection, once upon   initiation of lookup,  rather than for all physical memory references external to the VMM. This approach is NOT NEW and has been implemented in several systems.
 
 In essence the GuestOS created page tables are made redundant.  When these tables are initially created by the GuestOS,   the instructions used are trapped to the VMM.  We need to define what privileged instructions are executable in domain 1 and domain 0.  (thus, one benefit of the domain protection system). In this way,  the Hypervisor knows what the GuestOS is doing, but in allocates REAL physical pages.  The GuestOS allocation of physical pages is  meaningless with respect to real physical memory addresses. Thus, the PTE’s created by the Hypervisor are IDENTICAL to the PTE’s created by the OS, OTHER than physical address’s.  
 
@@ -445,20 +616,21 @@ The consequence of all this results is the following.  Any and all GuestOS (Doma
 The following figures are used to explain this mapping of physical to virtual for the kernel.
 
 \begin{figure}
-\includegraphics [scale = .4]
+\begin{center}
+\includegraphics [scale = .5]
 {figures/figure9mapping_logical_physical.jpg}
 \caption{MAPPING OF PHYSICAL TO LOGICAL ADDRESS SPACE}
+\end{center}
 \end{figure}
 
 
-FIGURE  9  - 
-\newline
-\newline
 
 \begin{figure}
-\includegraphics[scale = .4]
+\begin{center}
+\includegraphics[scale = .5]
 {figures/figure10_kernel_physical.jpg}
 \caption{VIRTUAL ADDRESS SPACE AND KERNEL PHYSICAL ADDRESS SPACE}
+\end{center}
 \end{figure}
 
 
@@ -467,20 +639,22 @@ FIGURE  9  -
 %----------------------------------------------------------------------------------------
 \section{TLB Architecture and Discussion}
 
-While  various approaches can be discussed and descripted,  there is one TLB characteristic that is the most important,  the working set size managed.   Thus, if there is a 32 GBytes of physical memory,  the working set of the TLB must be at least 32 GBytes.  This has to be true even for small page sizes.
+While  various approaches can be discussed and described,  there is one TLB characteristic that is the most important,  the working set size managed.   Thus, if there is a 32 GBytes of physical memory,  the working set of the TLB must be at least 32 GBytes.  This has to be true even for small page sizes.
 
-The next feature always discussed is the associativity approach.  Meaning does the TLB have to be purged after each process switch or not?   If not purged how is some level of global uniqueness maintained.  For SV128,  knowing that virtual address are created from domains, provides one type of uniqueness.    For the first implementations,   the use of the Linux Unique PID (32 bits) may be a good and rational choice.  This would be true if we choose a NON purge strategy when we have process multiplexing.
+The next feature always discussed is the associative approach.  Meaning does the TLB have to be purged after each process switch or not?   If not purged how is some level of global uniqueness maintained.  For SV128,  knowing that virtual address are created from domains, provides one type of uniqueness.    For the first implementations,   the use of the Linux Unique PID (32 bits) may be a good and rational choice.  This would be true if we choose a NON purge strategy when we have process multiplexing.
 
 Before a description of 3 possible TLB architectures,  the following is how Linux views the virtual address of current 64-bit virtual address architectures.
 
 \begin{figure}
+\begin{center}
 \includegraphics[scale = .7]{figures/figure11_linux_kernel_address.jpg}
 \caption{VIRTUAL ADDRESS SPACE MANAGED BY THE 64 BIT LINUX KERNEL}
+\end{center}
 \end{figure}
 
 
-
-Linux maintains up to 232  process  id encodings.  Linux attempts to assign a global unique name.  Linux manages this table for name allocation,  name  revocation, etc.  
+Linux maintains up to 2  exp (32)  process  id encodings. 
+Linux attempts to assign a global unique name.  Linux manages this table for name allocation,  name  revocation, etc.  
 
 The possible TLB architectures are:
 
@@ -491,10 +665,16 @@ The second  implementation is to associate on the 96 bit kernel managed virtual 
 
 The third implementation is only relevant when a VMM is present.  As noted before the Linux  created and managed 96 virtual address is  unique for  the case where there is only one Linux kernel.   When there is a VMM,  this is not the case.  So how can, if we want, create a TLB that DOES NOT have to be purged when there is multiplexing among Linux kernels?  This can be done by appending the PHYSICAL address of the page tables created by the Hypervisor for each instance of a Linux kernel.  By definition the physical address of the page tables for each Linux kernel base to be unique.  Define this entity (in a register) 	PHYSICAL KERNEL BASE (assume 40 bits). This is the register noted as VMM BASE in Figures 7 and 8.    Thus if one wants to create a TLB that is unique for ALL instantiations of all Linux kernels,  the virtual address that is associated has the following structure. 
 
+Please the section,
+\ref{Discussion -  ODT Format and Contents}  for how the definition of an Object\_ID  can be used by the TLB.
+
+
 \begin{figure}
+\begin{center}
 \includegraphics [scale = .7]
 {figures/figure12_address_tlb_lookup.jpg}
 \caption{Address used for TLB Lookup}
+\end{center}
 \end{figure}
 
 %----------------------------------------------------------------------------------------
@@ -1416,6 +1596,147 @@ moveee extd, ext1 & eaddix extd, ext1, 0\\
 \end{small}
 \end{center}SV128
 
+\pagebreak
+
+
+
+
+\begin{appendices}
+
+
+\appendix{\textbf{APPENDICES}}
+\section{Execution of a Load Instruction}
+
+
+To assist in the understanding, the following is a description of the execution of a SV128 instruction.  The step by step execution will be described,  a verbal flowchart. In this description the existence of accelerator will NOT be part of this description.  In reality,  in any hardware implementation various accelerators and caches will be deployed. 
+
+The following is the format of a SV128 instruction.  The general registers are 128 bits in length. There are several registers that are used for the decode and execution of the load instruction.  
+
+\begin{figure}[h]
+\includegraphics[scale= 1.1]{figures/isa_pgas_format.jpg}
+\caption{RISC-V Instruction Format\label{fig:RISC-V ISA Format}}
+\end{figure}
+ 
+
+
+These registers are and their meaning:
+
+\begin {itemize}
+\item PC – Program Counter. This register contains the byte address of the currently executing instruction.
+\item Current Domain  (CURRDOM)– This is a 2 bit register.  The value of this register is used to determine the current protection domain.
+\item DCAT (DOMCALLTABLE) Domain Call Access Table - used for cross domain calls
+\item DCAB (DOMCALLBASE) The base address of the Domain Call Access Table - One per  domain
+\item ODTBASE (OBJECTDEFTABLE) –BASE OF Object Definition Table- Object\_ID indexes into table.  Process Wide
+\item Object\_ID  base register (CURROBJECT)
+\item Current PGAS node id (CURRPGAS).
+\item RS1 – the RV128 integer register set.  128 bit wide.
+\item HyperPresent – Is this a Hypervisor configured system
+
+\end{itemize}
+
+
+
+
+
+\pagebreak
+
+In addition to these registers the following memory based operands are used to execute the load instruction.  
+
+
+
+\begin{figure}[h]
+\includegraphics[scale= 1.2]{figures/figure2b_pte.jpg}
+\caption{PAGE TABLE ENTRY\label{PAGE TBALE EnTRY}}
+\end{figure}
+\begin{figure}[h]
+
+\includegraphics[scale= .5]{figures/pointer_96_bit_object_type_field.jpg}
+\begin{center}
+\caption{SV128 POINTER FORMAT \label{SV128 POINTER FORMAT}}
+\end{center}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale= .3]{figures/figure4a_datt_translation_table.jpg}
+\caption{INDEXING INTO OBJECT DEFINITION TABLE} \label{INDEXING INTO OBJECT DEFINITION TABLE}
+
+\end{figure}
+
+ 
+
+\pagebreak
+
+\subsection {EXECUTION STEPS}
+
+
+
+
+
+1)The load instruction is decoded.  
+
+
+2)The  register  specified by the rs1 field is added to the immediate field to generate a 128 bit address.  This add ONLY uses the lower order 64 bits of these registers.  This is a modular 64 bit add.  The logical address produced has the following format.  The Object\_Id is the value contained in bits [95-64] of register rs1. 
+
+
+3)Based on the value of the Object\_ID (The object type field -  bits [67-64]) ,  the following happens. If the Object\_ID is  a PGAS node, then do the following:
+
+If the Object\_Id is  equal to the current PGAS node,   then the logical address is locally translated. (see logical to physical translation section)
+ 
+If the Object\_Id is NOT equal to the current PGAS node,  the 128 bit logical address is transmitted to the  designated pgas node.  It is the responsibility of the designated pgas node to local translate this virtual address and respond to the current pgas node with the referenced operand.
+
+If the Object\_Id is NOT a PGAS node.  Then do the following
+
+1.	The Object\_Id is added to the Object Definition Table Base.     As a function of the implementation,  this add may utilize  the hashed value of the Object\_Id.  Before the referenced entry is interpreted,  a bounds check is performed.  The Object\_Id is compared to the first entry in the Object Definition  Table.  If the Object\_Id is greater than the bounds check a fault occurs.  If not the referenced entry is interpreted.
+
+\pagebreak
+2.	The valid ODT entry has various control flags.  Among these flags are:
+\begin{itemize}
+\item the entry valid?
+\item Does this entry directly reference an operand, with an explicit bounds check?
+\item Does this entry reference a table of Page Table Entries,  and these entries have domain protection bits? 
+\end{itemize}
+
+
+
+
+
+
+
+
+
+3.	The following happens based on the flags and fields described above
+\begin{itemize}
+
+\item If the entry is not valid a fault occurs
+\item If the entry is  valid, then
+\item If the entry directly references an operand, a  bounds check is performed.  The bounds check value contained within the ODT entry is compared to the byte offset of the 64 bit byte offset of the virtual address.  If the byte offset is less than or equal to the bounds check value, processing continues.  If not a fault occurs.
+\item Then the permission  bits in the ODT entry are used to determine if the reference to the operand is valid.  The Current Domain register is used to access the permission bits of the referenced domain the ODT entry.  If the permission is granted,   logical to physical translation occurs,  If the permission is NOT granted,  a fault occurs.
+\item If the entry references an operand using  page tables for both permission and logical to  physical translation,  then the following  happens. (not directly referencing an operand)
+\item A field in the ODT entry indicates the type of logical to physical entry.  For this description assume that the logical to physical translation specifies RV64. 
+\item As part of this specification,  the page size and number of page tables are specified.
+\item The 64 bit byte offset is then translated from logical to physical.  During this translation,  the appropriate protection bit in the referenced PTE  is used to determine if the reference is valid.  If not valid,  a protection fault occurs. If valid the physical address derived is used to load the operand from memory to the designated register.
+\item The ODT entry can also specify  RV32 and HASHED virtual address logical to physical  translation.
+
+\end{itemize}
+
+
+
+
+It should be noted,  then when a Hypervisor is present,  the register ODT table entry uses for logical to physical   translation is in the Hypervisor address space.  
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
 %----------------------------------------------------------------------------------------
 %	ACKNOWLEDGEMENTS
 %----------------------------------------------------------------------------------------
@@ -1445,5 +1766,9 @@ National Laboratory/NERSC) and Steven Wallach (Micron).
 %\glsaddall
 %\glossarystyle{altlist}
 %\printglossary[title=List of Terms,toctitle=List of Terms]
+
+\end{appendices}
+
+
 
 \end{document}
