@@ -12,6 +12,7 @@
 
 % \usepackage{appendix}
 \usepackage[toc,page]{appendix}
+\usepackage{vhistory}
 
 
 
@@ -45,7 +46,7 @@
 \chead{\textbf{SV128 Architecture Extension Specification}}  % -- classification
 \rhead{}
 \cfoot{} %-- format: TR YYYY-RRR-V.V; y = year; r = report; v = version
-\lfoot{\textbf{SV128 0.0.1}}  % -- classification
+\lfoot{\textbf{SV128 0.0.2}}  % -- classification
 \rfoot{\thepage}      % -- page number
 
 %\usepackage{times} % Uncomment to use the Times New Roman font
@@ -75,7 +76,7 @@
 \begin{center}
 \begin{tabular}{l r}
 Date: & \today \\
-Version: & 0.0.1 \\ % Date the experiment was performed
+Version: & 0.0.2 \\ % Date the experiment was performed
 Authors: & Steven Wallach\\
 & John Leidel\\
 & David Donofrio\\
@@ -106,6 +107,17 @@ Authors: & Steven Wallach\\
 %\lstlistoflistings
 \listoftables
 %\listofalgorithms
+\clearpage
+
+%----------------------------------------------------------------------------------------
+%       Changelog
+%----------------------------------------------------------------------------------------
+
+\clearpage
+\begin{versionhistory}
+  \vhEntry{0.0.2}{01.24.2019}{SWallach}{Updating ODT and PTE information}
+  \vhEntry{0.0.1}{11.12.12018}{SWallach/JLeidel}{Initial Release}
+\end{versionhistory}
 \clearpage
 
 %----------------------------------------------------------------------------------------
@@ -459,17 +471,25 @@ As an aside,  the contents of the Object\_ID table entry can be viewed, if one w
 \subsection{Discussion - ODT Format and Contents}
 \label{Discussion - ODT Format and Contents}
 
-If the ODT entry were expanded to 256 bits,  then the entries should be:
+The ODT entry is 256 bits.  The entries are as follows (Figure~\ref{fig:ODT}):
 
 \begin{itemize}
 
-\item word 1  - control,  page table configuration,  and permissions.  ObjectId for Hash Table assistance.
-\item word 2 - physical address of first level page table
-\item word 3 - bounds check  on 64 bt byte offset 
-\item word 4 - system wide virtual address,  created by Hypervisor when present
+\item \textbf{word 1} - control, page table configuration, and permissions. ObjectId for Hash Table assistance. 
+\item \textbf{word 2} - physical address of first level page table
+\item \textbf{word 3} - bounds check on 64 bit byte offset
+\item \textbf{word 4} - system wide virtual address, created by Hypervisor when present 
 \end{itemize}
 
 The reason for the inclusion of word 4,  system wide wide virtual address, to:  be consistent with the current 64 bit Linux conventions for managing resources by the kernel and to provide a mechanism for a Persistent State TLB. Please see the section on TLB Discussion for more details.  The following is a diagram of the current Linux kernel system wide naming.  How would this be extended,  for SV128?
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[scale=.8]{figures/2019_jan_ODT_structure.jpg}
+\caption{ODT Format}
+\label{fig:ODT}
+\end{center}
+\end{figure}
 
 Word  4   has  meaning if a TLB with a persistent architecture is implemented.  This means process multiplexing DOES NOT  flush the TLB.  This can have meaningful imnpact on performance.  There maybe several   definition of word 4.  Thus,  for now, assume in word 1,  there is a 3 bit field that determines how the hardware will use word 4.  When there is a selected value in word 4,  the TLB will associate this value,  the indexed Object\_ID  and the Byte Offset for lookup purposes.
 
@@ -505,12 +525,13 @@ The Format of a PTE (denoted as VPN (0) is the above figure) is:
 \end{center}
 \end{figure}
 
-Each of the above domain fields is 4 bits wide.  These 4 bit indicate permissions (or lack thereof) for READ,  WRITE,  EXECUTE,  TBD. (perhaps reduce to 3 later on). One possibility for the unused bit to trap to a routine that mediates the access in some controlled  manner (like time of day)
+Each of the above domain fields is 3 bits wide.  These 3 bits indicate permissions (or lack there of) for READ, WRITE,  and EXECUTE actions.  See Figure~\ref{fig:ptepermissions}.  
 
 \begin{figure}[h]\begin{center}
 \includegraphics[scale=.4]
-{figures/figure5a_domain_permissions.jpg}
+{figures/2019_jan_new_5a_pte_pernissions.jpg}
 \caption{PTE PERMISSION}
+\label{fig:ptepermissions}
 \centering
 \end{center}
 \end{figure}
