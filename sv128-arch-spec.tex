@@ -46,7 +46,7 @@
 \chead{\textbf{SV128 Architecture Extension Specification}}  % -- classification
 \rhead{}
 \cfoot{} %-- format: TR YYYY-RRR-V.V; y = year; r = report; v = version
-\lfoot{\textbf{SV128 0.0.2}}  % -- classification
+\lfoot{\textbf{SV128 0.0.3}}  % -- classification
 \rfoot{\thepage}      % -- page number
 
 %\usepackage{times} % Uncomment to use the Times New Roman font
@@ -76,7 +76,7 @@
 \begin{center}
 \begin{tabular}{l r}
 Date: & \today \\
-Version: & 0.0.2 \\ % Date the experiment was performed
+Version: & 0.0.3 \\ % Date the experiment was performed
 Authors: & Steven Wallach\\
 & John Leidel\\
 & David Donofrio\\
@@ -115,6 +115,7 @@ Authors: & Steven Wallach\\
 
 \clearpage
 \begin{versionhistory}
+  \vhEntry{0.0.3}{02.04.2019}{SWallach}{Adding AppendixB: Domain Calls, Return and Shadow Stack}
   \vhEntry{0.0.2}{01.24.2019}{SWallach}{Updating ODT and PTE information}
   \vhEntry{0.0.1}{11.12.12018}{SWallach/JLeidel}{Initial Release}
 \end{versionhistory}
@@ -1746,6 +1747,115 @@ If the Object\_Id is NOT a PGAS node.  Then do the following
 It should be noted,  then when a Hypervisor is present,  the register ODT table entry uses for logical to physical   translation is in the Hypervisor address space.  
 
 
+\section{Domain Calls, Return and Shadow Stack}
+\label{sec:AppendixB}
+
+\subsection{Discussion}
+
+Before detailing this specialization,  the following is a discussion of the underlying principles.  Domains are NOT hierarchical in natures.  A Domain is a hardware  enforced protection boundary.  There is nothing in the architecture that prevents a   user application from being partitioned among multiple domains.  There is only one exception.  Domain 0,  is reserved for the operating kernel.  It is a function of the security model of the software development environment that determines the relationship between domains and applications.
+
+Another aspect of this architecture is the notion of a shadow stack.  A shadow stack,  is an extension that permits the isolation of code, within   the current domain.  This  reduces the capability and provides protection for imported utilities.  This is commonly called a SANDBOX.  Each domain can have its own sandbox.  A program  that is sandboxed is restricted in two ways.  One way is  designated bits in the PTE that references data. The second way  restricts imported utilities   and mediates  the manner  they can make cross domain calls.  All  shadow stack programs  that attempt to make cross domain calls,  must first be mediated.  The mediation is accomplished by providing  a unique sandbox  table in the current domain address space.  In essence the same  mediation  that is used to control cross domain calls is applies to sandboxed programs making gross domain calls.  But first the cross domain call must be mediated WITHIN the current domain. 
+
+All sandbox references perform the following permission actions.  First the permission  bits of the PTE for the current domain are used to determine if the reference is  fundamentally referenceable.  Then the permission bits in the  personal domain field of the PTE are logical ANDED with the  permission bits of the current domain. The result of this AND are then used to determine if the reference is valid. For example,  if the current domain PTE permission bits note READ ONLY,  and if the personal domain bits note READ AND WRITE,  only read permissions are authorized.
+
+One other item is stack structure and saved state. As a function of the complete definition of the privileged state of RV64,   I will defer as to the location of various registers that need to be saved (loaded)  upon calls and returns. This is particularly relevant for cross domain calls and returns. New stacks are created and previous stack  values are needed.  There are 2 general approaches   that are generally implemented.  One approach is to define various state registers that contain these register values.  Another approach is to define ?privileged? areas in memory for these values.  In the past,  the term ?page zero? has been used to define these context sensitive areas.   For now, the following discussion will simply say;  stack parameters saved  or stack parameters returned.  The actual mechanism  will be defined later.
+
+
+\subsection{Call Instruction}
+
+Crossing a domain is mediated.  Arbitrary entry  points are NOT  permitted. When crossing a domain,  the domain call instruction sequence MUST access a table in the Called Domain. The base of this table is defined in a register called: DOMAIN\_CALL\_ACCESS\_BASE (DCAB). 
+
+
+The DOMAIN call instruction has the following format:
+
+\begin{figure}[h]
+\includegraphics[width=\textwidth]{figures/DCAB.png}
+\caption{DCAB}
+\label{fig:DCAB}
+\end{figure}
+
+\subsection{Domain Call Access Table}
+
+When an OS is created, either due to either a native SV128 OS or a SV128 Hypervisor,  4 registers are loaded.  These 4 registers (one for each domain)  contain the logical address of the Domain Call Access Table (DCAT),  one per domain.   These registers are:  Domain Call Access Base.  (DCAB). The structure of  these table is:
+
+\begin{figure}[h]
+\includegraphics[width=\textwidth]{figures/DCAT.png}
+\caption{DCAT}
+\label{fig:DCAT}
+\end{figure}
+
+The base of this table is referenced in the Domain Call  Access Base (DCAB) register. 
+
+\subsection{Domain Call}
+\subsubsection{Domain Call Not Within the Current Domain (routine is not sandboxed)}
+
+When the domain called is NOT the current domain,  the following actions occur.
+
+When domain call instruction is executed the following occurs.  The Domain Name specified in the Domain Call instruction  is used to logically reference the appropriate Domain Call Access Base Register (DCAB).
+
+The first entry is used to perform a bounds check.  The entry point named  in the instruction (an integer - bits [15-0]) is compared to the Bounds Check  Value in  the DOMAIN CALL Access Table.  If  the specified entry point is valid,  then   the specified entry  point is used to index into the table and branch to the first location of the called routine.  There is NO OTHER WAY to transfer control from a caller to callee domain. The return domain instruction is the compliment of the CALL Domain. 
+
+Additionally,  the  contents of the entry indexed,  128 bits , has the following meanings. 
+
+\begin{figure}[h]
+\includegraphics[width=\textwidth]{figures/DomainCallEntry.png}
+\caption{Domain Call Entry}
+\label{fig:DomainCallEntry}
+\end{figure}
+
+The lower 96 bits  (bits 95-0) is the logical address of a valid entry point in the called domain,  becomes the new  value of the Program Counter (PC).  Other  bits are used for permissions and entry validity.  Bit 127 indicates that the table entry is valid (valid  =  ?1?).  If not valid, a fault occurs. Bits [99-96]  indicate that a domain crossing from the current domain permitted.  Bit 96,  a ?1? indicates that a call from domain 0 is permitted.  Bit 97 indicates that a call from domain 1 is permitted and so one. This structure is consistent with the non-hierarchical nature of domains.  This structure also permits certain entry points to be uniquely defined for particular routines for particular domains.
+
+In addition to these transfer of control, a new stack is created  in the called domain.  The called domain may access the caller?s domain,  but the caller?s domain cannot access the called domain?s stack. The  stack parameters of the current domain are saved in the current domain?s context.
+
+\textbf{It is the responsibility of the EACH domain to create its own DOMAIN CALL ACCESS TABLE.}
+
+\subsubsection{Domain Return}
+
+The domain return  instruction performs   the following:
+
+\begin{itemize}
+\item There are 4 stack parameter save areas.  One for each domain.  Thus, a domain return can only happen with the context of the  domain of the original call
+\item The saved stack parameters of the domain designated at the return domain,  are loaded in the stack parameters of the return domain.  As part of these actions, the it is verified that the current domain, was in fact, called from the designated return domain.  If this is true, the stack is returned domain stack is loaded.  Otherwise a fault occurs
+\item The current domain is changed to the designated return domain
+\item Execution  proceeds with the new value of the PC
+\end{itemize}
+
+\subsubsection{Domain Call Within the Current Domain - Shadow Stack}
+
+A mechanism is needed  to initiate the  creation of a shadow stack and personal domain.  The creation of a shadow stack is transparent to  other  domains.  The objective is to facilitate hardware enforced sandboxing. This permits  user programs to create data reference and system call  permission access control lists. While not  currently defined,   it is anticipated that  additional security permissions be  provided when sandboxing is enabled. 
+
+For example,  as a function of a particular implementation,  features such as variable clock frequencies, extended execution times for certain instructions,  cache snooping parameters,  could be specified when a sandboxed routine is called
+
+
+A shadow stack and personal domain is created in the following manner:
+
+\begin{itemize}
+\item The domain call instruction is executed
+\item The called domain is the current domain
+\item Various checks are performed; bounds check and valid indexed entry
+\item Bit 126 of the valid entry is examined.  If 0, a subroutine call is executed using the current stack parameters.  If 1, a shadow stack is created
+\end{itemize}
+
+The creation of a shadow stack is as follows:
+
+\begin{itemize}
+\item The current domain is unchanged.  The personal domain indication is set to ?1?
+\item The  current stack parameters are saved (in the context of the current domain)
+\item The stack parameters of the shadow stack are loaded from a predefined area in the current domain
+\item Transfer of control to the designated code
+\item Permissions are now mediated by both the current domain and personal domain permission fields (logically ANDED)
+\end{itemize}
+
+\subsubsection{Cross Domain Call - Shadow Stack}
+
+It is mandatory,  that part of sandboxing a routine, besides restricted data references,  there are restrictions on cross domain calls (especially system calls). When  the personal domain indication is set to ?1?,  (enabled),   the following actions occur when a cross domain call is attempted,  by the sandboxed routine.
+
+The Domain Name specified in the Domain Call instruction  is used to logically reference the appropriate Domain Call Access Base Register (DCAB)  in the current domain,  NOT the called domain.  For example.  A Call instruction specifying a call to domain 2,  from a sandboxed routine in Domain 3,  must first access the  entry referenced by the DCAB register in domain 3,
+
+
+The first entry is used to perform a bounds check.  The entry point named  in the instruction (an integer - bits [15-0]) is compared to the Bounds Check  Value in  the DOMAIN CALL Access Table.  If  the specified entry point is valid,  then   the specified entry  point is used to index into the table. The contents of this entry is the domain name and entry of the ultimate cross domain call. Furthermore, this reference table entry must enable this  indirection.  Bit 126 (the sandbox  bit)  must be a ?1? for this indirection to occur.  For now, there is only one domain crossing table within each domain.  If necessary,  another bit can be defined in this table to  enable  this indirection.
+
+There is NO OTHER WAY to transfer control from a caller to callee domain,  This indirection is required to mediate sandboxed routines. The return domain instruction is the complement of the CALL Domain.  In this case,  the return has sufficient information to maintain the state of the sandboxed routine.
 
 
 
@@ -1768,8 +1878,8 @@ It should be noted,  then when a Hypervisor is present,  the register ODT table 
 
 Many thanks to the following individuals for their advice and 
 effort in reviewing this specification: Bruce Jacobs (University 
-of Maryland), Kurt Keville (MIT), John Shalf (Lawrence Berkeley 
-National Laboratory/NERSC) and Steven Wallach (Micron).
+of Maryland), Kurt Keville (MIT) and John Shalf (Lawrence Berkeley 
+National Laboratory/NERSC).
 
 %----------------------------------------------------------------------------------------
 %	REFERENCES
